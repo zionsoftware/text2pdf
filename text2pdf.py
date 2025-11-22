@@ -1,0 +1,230 @@
+import argparse
+import os
+import sys
+import math
+import getpass
+from datetime import datetime
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+from reportlab.lib.units import mm
+from reportlab.lib import colors
+
+class TextToPdfConverter:
+    def __init__(self, font_size=10):
+        # Register Japanese font
+        try:
+            pdfmetrics.registerFont(UnicodeCIDFont('HeiseiMin-W3'))
+            self.font_name = 'HeiseiMin-W3'
+        except Exception as e:
+            print(f"Warning: Could not register Japanese font: {e}")
+            self.font_name = 'Helvetica'
+
+        self.page_width, self.page_height = landscape(A4)
+        self.margin = 15 * mm
+        self.column_gap = 10 * mm
+        self.header_height = 7 * mm # Reduced to ~1/3
+        self.footer_height = 5 * mm # Reduced to ~1/3
+        
+        # Layout calculations
+        self.body_width = self.page_width - (2 * self.margin)
+        self.body_height = self.page_height - (2 * self.margin) - self.header_height - self.footer_height
+        
+        self.col_width = (self.body_width - self.column_gap) / 2
+        
+        self.font_size = font_size
+        self.leading = font_size * 1.2 
+
+    def convert(self, input_path, output_path):
+        filename = os.path.basename(input_path)
+        full_path = os.path.abspath(input_path)
+        
+        c = canvas.Canvas(output_path, pagesize=landscape(A4))
+        c.setTitle(filename)
+        
+        try:
+            with open(input_path, 'r', encoding='euc-jp') as f:
+                lines = f.readlines()
+        except UnicodeDecodeError:
+            print(f"Error: Could not decode {input_path} as EUC-JP.")
+            return
+        except Exception as e:
+            print(f"Error reading file: {e}")
+            return
+
+        # Wrap lines
+        wrapped_lines = []
+        for line in lines:
+            line = line.rstrip('\n')
+            if not line:
+                wrapped_lines.append("")
+                continue
+            
+            wrapped_lines.extend(self._wrap_line(line))
+
+        lines = wrapped_lines # Replace original lines with wrapped ones
+
+        # Pagination logic
+        lines_per_col = int(self.body_height / self.leading)
+        lines_per_page = lines_per_col * 2
+        total_pages = math.ceil(len(lines) / lines_per_page)
+        if total_pages == 0: total_pages = 1
+        
+        current_line_idx = 0
+        page_num = 1
+        
+        while current_line_idx < len(lines) or page_num == 1:
+            self._draw_layout(c)
+            self._draw_header(c, filename)
+            self._draw_footer(c, page_num, total_pages, full_path)
+            
+            # Draw Left Column
+            self._draw_column(c, lines, current_line_idx, lines_per_col, 
+                              x=self.margin, 
+                              y=self.page_height - self.margin - self.header_height)
+            current_line_idx += lines_per_col
+            
+            # Draw Right Column
+            if current_line_idx < len(lines):
+                self._draw_column(c, lines, current_line_idx, lines_per_col, 
+                                  x=self.margin + self.col_width + self.column_gap, 
+                                  y=self.page_height - self.margin - self.header_height)
+                current_line_idx += lines_per_col
+            
+            c.showPage()
+            page_num += 1
+            if current_line_idx >= len(lines):
+                break
+            
+        c.save()
+        print(f"Successfully created {output_path}")
+
+    def _draw_layout(self, c):
+        # Draw borders
+        c.setLineWidth(1)
+        c.setStrokeColor(colors.black)
+        
+        # Header Box
+        header_y = self.page_height - self.margin - self.header_height
+        c.rect(self.margin, header_y, self.body_width, self.header_height, stroke=1, fill=0)
+        
+        # Body Box
+        body_y = self.margin + self.footer_height
+        c.rect(self.margin, body_y, self.body_width, self.body_height, stroke=1, fill=0)
+        
+        # Central Vertical Line
+        center_x = self.margin + self.body_width / 2
+        c.line(center_x, body_y, center_x, body_y + self.body_height)
+        
+        # Footer Box
+        footer_y = self.margin
+        c.rect(self.margin, footer_y, self.body_width, self.footer_height, stroke=1, fill=0)
+
+    def _draw_column(self, c, lines, start_idx, count, x, y):
+        c.setFont(self.font_name, self.font_size)
+        c.setFillColor(colors.black)
+        for i in range(count):
+            if start_idx + i >= len(lines):
+                break
+            line = lines[start_idx + i]
+            # Adjust y to start from top of the line box
+            text_y = y - (i + 1) * self.leading + (self.leading - self.font_size) / 2
+            c.drawString(x + 2, text_y, line) # +2 padding
+
+    def _draw_header(self, c, filename):
+        header_y = self.page_height - self.margin - self.header_height
+        
+        # Background shading
+        c.setFillColor(colors.lightgrey)
+        c.rect(self.margin, header_y, self.body_width, self.header_height, stroke=1, fill=1)
+        
+        c.setFillColor(colors.black)
+        
+        # Filename (Large)
+        # Reduced font size slightly to fit in smaller header
+        c.setFont(self.font_name, 12) 
+        # Centered vertically in header: header_height is 7mm (~20pt). 12pt font.
+        # Baseline shift approx (20 - 12) / 2 = 4pt.
+        c.drawString(self.margin + 5, header_y + 5, filename)
+        
+        # Date and User
+        c.setFont(self.font_name, 8)
+        date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        user_str = getpass.getuser()
+        info_str = f"{date_str}  User: {user_str}"
+        
+        info_width = c.stringWidth(info_str, self.font_name, 8)
+        c.drawString(self.page_width - self.margin - info_width - 5, header_y + 6, info_str)
+
+    def _draw_footer(self, c, page_num, total_pages, full_path):
+        footer_y = self.margin
+        c.setFillColor(colors.black)
+        c.setFont(self.font_name, 8)
+        
+        # Left: Full Path
+        # Footer height 5mm (~14pt). 8pt font.
+        # Baseline shift approx (14 - 8) / 2 = 3pt.
+        c.drawString(self.margin + 5, footer_y + 4, full_path)
+        
+        # Right: Page X / Y
+        page_str = f"{page_num} / {total_pages}"
+        page_width = c.stringWidth(page_str, self.font_name, 8)
+        c.drawString(self.page_width - self.margin - page_width - 5, footer_y + 4, page_str)
+
+    def _wrap_line(self, text):
+        if not text:
+            return [""]
+        
+        lines = []
+        current_line = ""
+        current_width = 0
+        
+        for char in text:
+            char_width = pdfmetrics.stringWidth(char, self.font_name, self.font_size)
+            if current_width + char_width <= self.col_width:
+                current_line += char
+                current_width += char_width
+            else:
+                lines.append(current_line)
+                current_line = char
+                current_width = char_width
+                
+        if current_line:
+            lines.append(current_line)
+            
+        return lines
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Convert EUC-JP text file to A4 2UP PDF.")
+    parser.add_argument("input_file", help="Path to the input EUC-JP text file")
+    parser.add_argument("output_file", nargs="?", help="Path to the output PDF file")
+    parser.add_argument("--font-size", choices=["large", "medium", "small"], default="medium",
+                        help="Font size (large=11pt, medium=10pt, small=8pt)")
+    
+    args = parser.parse_args()
+    
+    input_path = args.input_file
+    if not os.path.exists(input_path):
+        print(f"Error: File not found: {input_path}")
+        sys.exit(1)
+        
+    if args.output_file:
+        output_path = args.output_file
+    else:
+        base, _ = os.path.splitext(input_path)
+        output_path = base + ".pdf"
+    
+    size_map = {
+        "large": 11,
+        "medium": 10,
+        "small": 8
+    }
+    font_size = size_map[args.font_size]
+        
+    converter = TextToPdfConverter(font_size=font_size)
+    converter.convert(input_path, output_path)
+
+if __name__ == "__main__":
+    main()
