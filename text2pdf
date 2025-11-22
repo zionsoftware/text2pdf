@@ -46,6 +46,8 @@ class TextToPdfConverter:
         else:
             self.col_width = (self.body_width - self.column_gap) / 2
             
+        self.layout_col_width = self.col_width # Store full width for layout positioning
+            
         # Adjust column width for inner padding
         self.col_width -= (self.padding_left + self.padding_right)
         
@@ -109,7 +111,7 @@ class TextToPdfConverter:
             # Draw Second Column (Right in 2UP)
             if self.layout == '2up' and current_line_idx < len(lines):
                 self._draw_column(c, lines, current_line_idx, lines_per_col, 
-                                  x=self.margin + self.col_width + self.column_gap, 
+                                  x=self.margin + self.layout_col_width + self.column_gap, 
                                   y=self.page_height - self.margin - self.header_height)
                 current_line_idx += lines_per_col
             
