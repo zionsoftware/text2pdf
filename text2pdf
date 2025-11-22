@@ -34,7 +34,7 @@ class TextToPdfConverter:
         self.column_gap = 10 * mm
         self.header_height = 7 * mm # Reduced to ~1/3
         self.footer_height = 5 * mm # Reduced to ~1/3
-        self.padding_left = 8
+        self.padding_left = 6
         self.padding_right = 6
         
         # Layout calculations
