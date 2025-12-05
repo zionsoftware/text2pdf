@@ -1,0 +1,90 @@
+Mixed Language Test File / 日英混在テストファイル
+==================================================
+
+Page 1: Introduction / 1ページ目：はじめに
+------------------------------------------
+
+This file tests the hybrid font rendering of the text2pdf converter.
+このファイルは、text2pdfコンバータのハイブリッドフォントレンダリングをテストします。
+
+The goal is to ensure that English text uses Courier (monospaced) and Japanese text uses HeiseiMin-W3.
+目標は、英語のテキストにはCourier（等幅）、日本語のテキストにはHeiseiMin-W3が使用されることを確認することです。
+
+ASCII Art Test / アスキーアートテスト:
++--------------------------------+
+|  Column 1      |  Column 2     |
++--------------------------------+
+|  Value A       |  12345        |
+|  Value B       |  67890        |
++--------------------------------+
+
+日本語の表テスト:
+＋――――――――――――――――＋
+｜　項目１　　　　｜　項目２　　　｜
+＋――――――――――――――――＋
+｜　値Ａ　　　　　｜　１２３４５　｜
+｜　値Ｂ　　　　　｜　６７８９０　｜
+＋――――――――――――――――＋
+
+Code Sample / コードサンプル:
+
+def hello_world():
+    print("Hello, World!")
+    print("こんにちは、世界！")
+
+for i in range(5):
+    print(f"Count: {i} / カウント: {i}")
+
+--------------------------------------------------
+End of Page 1 / 1ページ目終了
+--------------------------------------------------
+
+Page 2: Detailed Text / 2ページ目：詳細テキスト
+-----------------------------------------------
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+
+吾輩は猫である。名前はまだ無い。
+どこで生れたかとんと見当がつかぬ。
+何でも薄暗いじめじめした所でニャーニャー泣いていた事だけは記憶している。
+吾輩はここで始めて人間というものを見た。
+
+Mixed Line Alignment / 混在行のアライメント:
+1. English Word      : Description
+2. 日本語の単語      : 説明
+3. Mixed / 混在      : Test / テスト
+
+    Indentation check with spaces.
+    スペースによるインデント確認。
+		Indentation check with tabs.
+		タブによるインデント確認。
+
+Special Characters / 特殊文字:
+!@#$%^&*()_+
+！＠＃＄％＾＆＊（）＿＋
+
+--------------------------------------------------
+End of Page 2 / 2ページ目終了
+--------------------------------------------------
+
+Page 3: Long Lines and Wrapping / 3ページ目：長い行と折り返し
+-------------------------------------------------------------
+
+This is a very long line that should wrap automatically to the next line without breaking the layout or causing encoding issues. It contains both English words and some Japanese characters like 「長い行」 to test how the wrapper handles mixed content boundaries.
+これは非常に長い行であり、レイアウトを崩したりエンコードの問題を引き起こしたりすることなく、自動的に次の行に折り返される必要があります。これには、ラッパーが混在したコンテンツの境界をどのように処理するかをテストするために、英単語と「Long Line」のような日本語の文字の両方が含まれています。
+
+Repeating Pattern / 繰り返しパターン:
+ABABABABABABABABABABABABABABABABABABABAB
+あいうえおあいうえおあいうえおあいうえお
+AあBいCうDえEおFAあBいCうDえEおF
+
+Final Check / 最終確認:
+The quick brown fox jumps over the lazy dog.
+いろはにほへと　ちりぬるを
+わかよたれそ　つねならむ
+うゐのおくやま　けふこえて
+あさきゆめみし　ゑひもせす
+
+End of Document / ドキュメント終了

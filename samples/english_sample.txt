@@ -1,0 +1,14 @@
+The quick brown fox jumps over the lazy dog.
+ABCDEFGHIJKLMNOPQRSTUVWXYZ
+abcdefghijklmnopqrstuvwxyz
+0123456789
+!@#$%^&*()_+-=[]{};':",./<>?\|`~
+    Indented text with spaces.
+		Indented text with tabs.
+This is a test of monospaced font rendering.
+Columns should align if monospaced:
+1234567890
+abcdefghij
+ABCDEFGHIJ
+..........
+|   |    |

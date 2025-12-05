@@ -17,10 +17,12 @@ class TextToPdfConverter:
         # Register Japanese font
         try:
             pdfmetrics.registerFont(UnicodeCIDFont('HeiseiMin-W3'))
-            self.font_name = 'HeiseiMin-W3'
+            self.jp_font = 'HeiseiMin-W3'
         except Exception as e:
             print(f"Warning: Could not register Japanese font: {e}")
-            self.font_name = 'Helvetica'
+            self.jp_font = 'Helvetica' # Fallback
+
+        self.en_font = 'Courier' # Standard monospaced font for English
 
         self.layout = layout
         if self.layout == '1up':
@@ -146,7 +148,7 @@ class TextToPdfConverter:
         c.rect(self.margin, footer_y, self.body_width, self.footer_height, stroke=1, fill=0)
 
     def _draw_column(self, c, lines, start_idx, count, x, y):
-        c.setFont(self.font_name, self.font_size)
+        # c.setFont(self.font_name, self.font_size) # Font set per character/chunk
         c.setFillColor(colors.black)
         for i in range(count):
             if start_idx + i >= len(lines):
@@ -154,7 +156,19 @@ class TextToPdfConverter:
             line = lines[start_idx + i]
             # Adjust y to start from top of the line box
             text_y = y - (i + 1) * self.leading + (self.leading - self.font_size) / 2
-            c.drawString(x + self.padding_left, text_y, line)
+            self._draw_text_line(c, x + self.padding_left, text_y, line)
+
+    def _draw_text_line(self, c, x, y, text):
+        current_x = x
+        for char in text:
+            if ord(char) < 128:
+                font_name = self.en_font
+            else:
+                font_name = self.jp_font
+            
+            c.setFont(font_name, self.font_size)
+            c.drawString(current_x, y, char)
+            current_x += pdfmetrics.stringWidth(char, font_name, self.font_size)
 
     def _draw_header(self, c, filename):
         header_y = self.page_height - self.margin - self.header_height
@@ -167,24 +181,24 @@ class TextToPdfConverter:
         
         # Filename (Large)
         # Reduced font size slightly to fit in smaller header
-        c.setFont(self.font_name, 15) # Increased +2
+        c.setFont(self.jp_font, 15) # Increased +2
         # Centered vertically in header: header_height is 7mm (~20pt). 15pt font.
         # Baseline shift approx (20 - 15) / 2 = 2.5pt.
         c.drawString(self.margin + 5, header_y + 5, filename)
         
         # Date and User
-        c.setFont(self.font_name, 10) # Increased +1
+        c.setFont(self.en_font, 10) # Increased +1
         date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         user_str = getpass.getuser()
         info_str = f"{date_str}  Printed by {user_str}"
         
-        info_width = c.stringWidth(info_str, self.font_name, 10)
+        info_width = c.stringWidth(info_str, self.en_font, 10)
         c.drawString(self.page_width - self.margin - info_width - 5, header_y + 6, info_str)
 
     def _draw_footer(self, c, page_num, total_pages, full_path):
         footer_y = self.margin
         c.setFillColor(colors.black)
-        c.setFont(self.font_name, 10) # Increased +1
+        c.setFont(self.en_font, 10) # Increased +1
         
         # Left: Full Path
         # Footer height 5mm (~14pt). 10pt font.
@@ -193,7 +207,7 @@ class TextToPdfConverter:
         
         # Right: Page X / Y
         page_str = f"{page_num} / {total_pages}"
-        page_width = c.stringWidth(page_str, self.font_name, 10)
+        page_width = c.stringWidth(page_str, self.en_font, 10)
         c.drawString(self.page_width - self.margin - page_width - 5, footer_y + 4, page_str)
 
     def _wrap_line(self, text):
@@ -205,7 +219,12 @@ class TextToPdfConverter:
         current_width = 0
         
         for char in text:
-            char_width = pdfmetrics.stringWidth(char, self.font_name, self.font_size)
+            if ord(char) < 128:
+                font_name = self.en_font
+            else:
+                font_name = self.jp_font
+                
+            char_width = pdfmetrics.stringWidth(char, font_name, self.font_size)
             if current_width + char_width <= self.col_width:
                 current_line += char
                 current_width += char_width
