@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from converter import (
+from text2pdf import (
     ConversionError,
     detect_encoding,
     format_ambiguous_warning,

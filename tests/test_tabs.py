@@ -2,7 +2,7 @@
 
 import pytest
 
-from converter import layout_line
+from text2pdf import layout_line
 
 
 def ascii_width(ch):

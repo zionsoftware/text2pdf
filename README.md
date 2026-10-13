@@ -27,19 +27,31 @@ pip install -r requirements.txt
 pip install -r requirements-dev.txt
 ```
 
+サーバへ置く自前のプログラムは `text2pdf` 1 ファイルです。変換処理もこのファイルに入っています。Python 3.9、ReportLab、IPA ゴシックはサーバ側に入っている必要があります。
+
+```bash
+python3 text2pdf input.txt
+```
+
 ## IPA ゴシック
 
 このリポジトリにはフォントファイルを含めていません。IPA フォントは [IPA Font License](https://moji.or.jp/ipafont/license/) で配布されています。入手先は [IPA フォントのダウンロードページ](https://moji.or.jp/ipafont/ipafontdownload/) です。
 
-`ipag.ttf` を次の場所に置いてください。これが `--font-path` を省略したときの既定パスです。
+`ipag.ttf` を、fontconfig が読む次のいずれかのディレクトリか、そのサブディレクトリに置いてください。`--font-path` を省略したときは、この順で `ipag.ttf` を探します。
+
+- `/usr/share/fonts`（RHEL のパッケージでは `/usr/share/fonts/ipa-gothic/ipag.ttf`）
+- `/usr/local/share/fonts`
+- `/usr/share/X11/fonts`
+- `~/.local/share/fonts`
+- `~/.fonts`
 
 ```bash
-mkdir -p ~/.local/share/fonts
-cp ipag.ttf ~/.local/share/fonts/ipag.ttf
-fc-cache -f
+sudo mkdir -p /usr/share/fonts/ipa-gothic
+sudo cp ipag.ttf /usr/share/fonts/ipa-gothic/ipag.ttf
+sudo fc-cache -f
 ```
 
-別の TrueType フォントを使うときは `--font-path` でファイルを指定します。ファイルが無い場合はエラーになり、終了コードは 1 です。
+ファイル名が `ipag.ttf` のものだけを使います。IPA 明朝や IPA P ゴシックは対象外です。見つからないときは終了コード 1 です。別の TrueType フォントを使うときは `--font-path` でファイルを指定します。指定したファイルが無い場合も終了コードは 1 です。
 
 ```bash
 ./text2pdf input.txt output.pdf --font-path /path/to/font.ttf
@@ -178,4 +190,4 @@ pytest
 
 - Python 3.9（RHEL 9 のシステム Python）
 - reportlab
-- IPA ゴシック（`~/.local/share/fonts/ipag.ttf`）
+- IPA ゴシック（`ipag.ttf`。通常のフォントディレクトリか、そのサブディレクトリ）

@@ -15,7 +15,7 @@ import pytest
 from pypdf import PdfReader
 from reportlab.pdfbase import pdfmetrics
 
-from converter import FONT_NAME, ConversionError
+from text2pdf import FONT_NAME, ConversionError
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -344,7 +344,7 @@ def test_failed_save_does_not_leave_a_pdf(converter_factory, tmp_path, monkeypat
 
 
 def test_missing_font_raises_before_writing(tmp_path):
-    from converter import TextToPdfConverter
+    from text2pdf import TextToPdfConverter
 
     source = tmp_path / "in.txt"
     source.write_bytes(b"hello\n")
