@@ -359,7 +359,6 @@ class TextToPdfConverter:
         font_path=None,
         tab_size=DEFAULT_TAB_SIZE,
         user=None,
-        timestamp=None,
     ):
         if layout not in ("1up", "2up"):
             raise ConversionError("Error: Unsupported layout: {!r}".format(layout), 2)
@@ -375,7 +374,6 @@ class TextToPdfConverter:
         self.font_name = FONT_NAME
         self.tab_size = tab_size
         self.user = getpass.getuser() if user is None else user
-        self.timestamp = datetime.now() if timestamp is None else timestamp
         self.layout = layout
         self.font_size = font_size
 
@@ -438,6 +436,7 @@ class TextToPdfConverter:
                 1,
             )
         source_lines, selected, ambiguous = load_text(input_path, encoding)
+        self.timestamp = datetime.fromtimestamp(os.path.getmtime(input_path))
         report_encoding(encoding, selected, ambiguous)
         visual_lines = []
         for line in source_lines:

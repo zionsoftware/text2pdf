@@ -1,6 +1,5 @@
 import importlib.util
 import sys
-from datetime import datetime
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
@@ -31,7 +30,6 @@ def converter_factory(font_path):
 
     def make(**kwargs):
         kwargs.setdefault("font_path", font_path)
-        kwargs.setdefault("timestamp", datetime(2026, 10, 13, 12, 0, 0))
         kwargs.setdefault("user", "tester")
         return TextToPdfConverter(**kwargs)
 

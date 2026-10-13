@@ -6,6 +6,7 @@ character in the extracted text; those are asserted absent separately from
 whether the surrounding characters can be extracted at all.
 """
 
+import os
 import subprocess
 import sys
 from datetime import datetime
@@ -200,13 +201,40 @@ def test_1up_and_2up_page_boxes(converter_factory, tmp_path):
 
 def test_empty_file_is_one_page(converter_factory, tmp_path):
     converter = converter_factory(layout="1up")
-    _source, output = _write(converter, tmp_path, "")
+    source = tmp_path / "input.txt"
+    source.write_bytes(b"")
+    updated = datetime(2026, 10, 13, 12, 0, 0)
+    stamp = updated.timestamp()
+    os.utime(source, (stamp, stamp))
+    output = tmp_path / "input.pdf"
+    converter.convert(str(source), str(output), encoding="utf-8")
     items, reader = _positions(output)
     assert len(reader.pages) == 1
     extracted = "".join(item["text"] for item in items)
     assert "1 / 1" in extracted
     assert "Printed by tester" in extracted
     assert "Updated 2026-10-13 12:00:00" in extracted
+
+
+def test_header_shows_input_mtime_on_every_page(converter_factory, tmp_path):
+    converter = converter_factory(layout="1up", font_size=10)
+    total = converter.lines_per_page + 1
+    lines = ["L{:04d}".format(i) for i in range(total)]
+    source = tmp_path / "pages.txt"
+    source.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    updated = datetime(2001, 2, 3, 4, 5, 6)
+    stamp = updated.timestamp()
+    os.utime(source, (stamp, stamp))
+    output = tmp_path / "pages.pdf"
+    converter.convert(str(source), str(output), encoding="utf-8")
+    items, reader = _positions(output)
+    assert len(reader.pages) > 1
+    expected = "Updated {}".format(updated.strftime("%Y-%m-%d %H:%M:%S"))
+    for page_index in range(len(reader.pages)):
+        page_text = "".join(
+            item["text"] for item in items if item["page"] == page_index
+        )
+        assert expected in page_text
 
 
 def test_page_numbers_follow_wrapped_line_count(converter_factory, tmp_path):
@@ -352,7 +380,6 @@ def test_missing_font_raises_before_writing(tmp_path):
     with pytest.raises(ConversionError) as caught:
         TextToPdfConverter(
             font_path=str(tmp_path / "no-such-font.ttf"),
-            timestamp=datetime(2026, 10, 13, 12, 0, 0),
             user="tester",
         )
     assert caught.value.exit_code == 1
