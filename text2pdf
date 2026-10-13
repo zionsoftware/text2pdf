@@ -386,7 +386,7 @@ class TextToPdfConverter:
 
         self.margin = 15 * mm
         self.column_gap = 10 * mm
-        self.header_height = 7 * mm
+        self.header_height = 6 * mm
         self.footer_height = 5 * mm
         self.padding_left = 6
         self.padding_right = 6
@@ -584,9 +584,9 @@ class TextToPdfConverter:
         c.setFillColor(colors.black)
 
         info_size = 10
-        name_size = 15
+        name_size = 13
         date_str = self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
-        info_str = "{}  Printed by {}".format(date_str, self.user)
+        info_str = "Updated {}  Printed by {}".format(date_str, self.user)
         left_x = self.margin + 5
         right_edge = self.page_width - self.margin - 5
         info_width = pdfmetrics.stringWidth(info_str, self.font_name, info_size)
@@ -599,9 +599,9 @@ class TextToPdfConverter:
         )
 
         c.setFont(self.font_name, name_size)
-        c.drawString(left_x, header_y + 5, visible_name)
+        c.drawString(left_x, header_y + 4, visible_name)
         c.setFont(self.font_name, info_size)
-        c.drawString(info_x, header_y + 6, info_str)
+        c.drawString(info_x, header_y + 5, info_str)
 
     def _draw_footer(self, c, page_num, total_pages, full_path):
         footer_y = self.margin

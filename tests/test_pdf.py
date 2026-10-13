@@ -206,7 +206,7 @@ def test_empty_file_is_one_page(converter_factory, tmp_path):
     extracted = "".join(item["text"] for item in items)
     assert "1 / 1" in extracted
     assert "Printed by tester" in extracted
-    assert "2026-10-13 12:00:00" in extracted
+    assert "Updated 2026-10-13 12:00:00" in extracted
 
 
 def test_page_numbers_follow_wrapped_line_count(converter_factory, tmp_path):
@@ -268,11 +268,11 @@ def test_header_and_footer_do_not_overlap(converter_factory, tmp_path):
     header_left = [
         item
         for item in items
-        if item["size"] == pytest.approx(15) and item["y"] == pytest.approx(info["y"], abs=5)
+        if item["size"] == pytest.approx(13) and item["y"] == pytest.approx(info["y"], abs=5)
     ]
     assert header_left
     name = header_left[0]
-    name_width = pdfmetrics.stringWidth(name["text"], FONT_NAME, 15)
+    name_width = pdfmetrics.stringWidth(name["text"], FONT_NAME, 13)
     info_width = pdfmetrics.stringWidth(info["text"], FONT_NAME, 10)
     assert name["x"] + name_width <= info["x"] - 5
     assert "..." in name["text"]
@@ -423,7 +423,7 @@ def test_cli_font_size_sets_body_and_keeps_chrome(tmp_path, layout, argument, si
     assert any(
         item["text"] == "ABC" and item["size"] == pytest.approx(size) for item in items
     )
-    assert any(item["size"] == pytest.approx(15) for item in items)
+    assert any(item["size"] == pytest.approx(13) for item in items)
     page = next(item for item in items if item["text"] == "1 / 1")
     info = next(item for item in items if "Printed by" in item["text"])
     assert page["size"] == pytest.approx(10)
@@ -496,7 +496,7 @@ def test_2up_numeric_font_wraps_inside_the_column(converter_factory, tmp_path):
     for item in body_items:
         width = pdfmetrics.stringWidth(item["text"], FONT_NAME, 16)
         assert item["x"] + width <= right_limit + 0.5
-    assert any(item["size"] == pytest.approx(15) for item in items)
+    assert any(item["size"] == pytest.approx(13) for item in items)
 
 
 def test_samples_convert_with_auto_detection(converter_factory, tmp_path, capsys):
