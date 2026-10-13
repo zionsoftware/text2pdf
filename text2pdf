@@ -2,274 +2,99 @@
 import argparse
 import os
 import sys
-import math
-import getpass
-from datetime import datetime
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.cidfonts import UnicodeCIDFont
-from reportlab.lib.units import mm
-from reportlab.lib import colors
 
-class TextToPdfConverter:
-    def __init__(self, font_size=10, layout='2up'):
-        # Register Japanese font
-        try:
-            pdfmetrics.registerFont(UnicodeCIDFont('HeiseiMin-W3'))
-            self.jp_font = 'HeiseiMin-W3'
-        except Exception as e:
-            print(f"Warning: Could not register Japanese font: {e}")
-            self.jp_font = 'Helvetica' # Fallback
-
-        self.en_font = 'Courier' # Standard monospaced font for English
-
-        self.layout = layout
-        if self.layout == '1up':
-            self.page_width, self.page_height = A4
-        else:
-            self.page_width, self.page_height = landscape(A4)
-            
-        self.margin = 15 * mm
-        self.column_gap = 10 * mm
-        self.margin = 15 * mm
-        self.column_gap = 10 * mm
-        self.header_height = 7 * mm # Reduced to ~1/3
-        self.footer_height = 5 * mm # Reduced to ~1/3
-        self.padding_left = 6
-        self.padding_right = 6
-        
-        # Layout calculations
-        self.body_width = self.page_width - (2 * self.margin)
-        self.body_height = self.page_height - (2 * self.margin) - self.header_height - self.footer_height
-        
-        if self.layout == '1up':
-            self.col_width = self.body_width
-        else:
-            self.col_width = (self.body_width - self.column_gap) / 2
-            
-        self.layout_col_width = self.col_width # Store full width for layout positioning
-            
-        # Adjust column width for inner padding
-        self.col_width -= (self.padding_left + self.padding_right)
-        
-        self.font_size = font_size
-        self.leading = font_size * 1.2 + 3 # Added +3pt spacing 
-
-    def convert(self, input_path, output_path):
-        filename = os.path.basename(input_path)
-        full_path = os.path.abspath(input_path)
-        
-        c = canvas.Canvas(output_path, pagesize=(self.page_width, self.page_height))
-        c.setTitle(filename)
-        
-        try:
-            with open(input_path, 'r', encoding='euc-jp') as f:
-                lines = f.readlines()
-        except UnicodeDecodeError:
-            print(f"Error: Could not decode {input_path} as EUC-JP.")
-            return
-        except Exception as e:
-            print(f"Error reading file: {e}")
-            return
-
-        # Wrap lines
-        wrapped_lines = []
-        for line in lines:
-            line = line.rstrip('\n')
-            if not line:
-                wrapped_lines.append("")
-                continue
-            
-            wrapped_lines.extend(self._wrap_line(line))
-
-        lines = wrapped_lines # Replace original lines with wrapped ones
-
-        # Pagination logic
-        lines_per_col = int(self.body_height / self.leading)
-        
-        if self.layout == '1up':
-            lines_per_page = lines_per_col
-        else:
-            lines_per_page = lines_per_col * 2
-            
-        total_pages = math.ceil(len(lines) / lines_per_page)
-        if total_pages == 0: total_pages = 1
-        
-        current_line_idx = 0
-        page_num = 1
-        
-        while current_line_idx < len(lines) or page_num == 1:
-            self._draw_layout(c)
-            self._draw_header(c, filename)
-            self._draw_footer(c, page_num, total_pages, full_path)
-            
-            # Draw First Column (Left in 2UP, Only in 1UP)
-            self._draw_column(c, lines, current_line_idx, lines_per_col, 
-                              x=self.margin, 
-                              y=self.page_height - self.margin - self.header_height)
-            current_line_idx += lines_per_col
-            
-            # Draw Second Column (Right in 2UP)
-            if self.layout == '2up' and current_line_idx < len(lines):
-                self._draw_column(c, lines, current_line_idx, lines_per_col, 
-                                  x=self.margin + self.layout_col_width + self.column_gap, 
-                                  y=self.page_height - self.margin - self.header_height)
-                current_line_idx += lines_per_col
-            
-            c.showPage()
-            page_num += 1
-            if current_line_idx >= len(lines):
-                break
-            
-        c.save()
-        print(f"Successfully created {output_path}")
-
-    def _draw_layout(self, c):
-        # Draw borders
-        c.setLineWidth(1)
-        c.setStrokeColor(colors.black)
-        
-        # Header Box
-        header_y = self.page_height - self.margin - self.header_height
-        c.rect(self.margin, header_y, self.body_width, self.header_height, stroke=1, fill=0)
-        
-        # Body Box
-        body_y = self.margin + self.footer_height
-        c.rect(self.margin, body_y, self.body_width, self.body_height, stroke=1, fill=0)
-        
-        # Central Vertical Line
-        if self.layout == '2up':
-            center_x = self.margin + self.body_width / 2
-            c.line(center_x, body_y, center_x, body_y + self.body_height)
-        
-        # Footer Box
-        footer_y = self.margin
-        c.rect(self.margin, footer_y, self.body_width, self.footer_height, stroke=1, fill=0)
-
-    def _draw_column(self, c, lines, start_idx, count, x, y):
-        # c.setFont(self.font_name, self.font_size) # Font set per character/chunk
-        c.setFillColor(colors.black)
-        for i in range(count):
-            if start_idx + i >= len(lines):
-                break
-            line = lines[start_idx + i]
-            # Adjust y to start from top of the line box
-            text_y = y - (i + 1) * self.leading + (self.leading - self.font_size) / 2
-            self._draw_text_line(c, x + self.padding_left, text_y, line)
-
-    def _draw_text_line(self, c, x, y, text):
-        current_x = x
-        for char in text:
-            if ord(char) < 128:
-                font_name = self.en_font
-            else:
-                font_name = self.jp_font
-            
-            c.setFont(font_name, self.font_size)
-            c.drawString(current_x, y, char)
-            current_x += pdfmetrics.stringWidth(char, font_name, self.font_size)
-
-    def _draw_header(self, c, filename):
-        header_y = self.page_height - self.margin - self.header_height
-        
-        # Background shading
-        c.setFillColor(colors.lightgrey)
-        c.rect(self.margin, header_y, self.body_width, self.header_height, stroke=1, fill=1)
-        
-        c.setFillColor(colors.black)
-        
-        # Filename (Large)
-        # Reduced font size slightly to fit in smaller header
-        c.setFont(self.jp_font, 15) # Increased +2
-        # Centered vertically in header: header_height is 7mm (~20pt). 15pt font.
-        # Baseline shift approx (20 - 15) / 2 = 2.5pt.
-        c.drawString(self.margin + 5, header_y + 5, filename)
-        
-        # Date and User
-        c.setFont(self.en_font, 10) # Increased +1
-        date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        user_str = getpass.getuser()
-        info_str = f"{date_str}  Printed by {user_str}"
-        
-        info_width = c.stringWidth(info_str, self.en_font, 10)
-        c.drawString(self.page_width - self.margin - info_width - 5, header_y + 6, info_str)
-
-    def _draw_footer(self, c, page_num, total_pages, full_path):
-        footer_y = self.margin
-        c.setFillColor(colors.black)
-        c.setFont(self.en_font, 10) # Increased +1
-        
-        # Left: Full Path
-        # Footer height 5mm (~14pt). 10pt font.
-        # Baseline shift approx (14 - 10) / 2 = 2pt.
-        c.drawString(self.margin + 5, footer_y + 4, full_path)
-        
-        # Right: Page X / Y
-        page_str = f"{page_num} / {total_pages}"
-        page_width = c.stringWidth(page_str, self.en_font, 10)
-        c.drawString(self.page_width - self.margin - page_width - 5, footer_y + 4, page_str)
-
-    def _wrap_line(self, text):
-        if not text:
-            return [""]
-        
-        lines = []
-        current_line = ""
-        current_width = 0
-        
-        for char in text:
-            if ord(char) < 128:
-                font_name = self.en_font
-            else:
-                font_name = self.jp_font
-                
-            char_width = pdfmetrics.stringWidth(char, font_name, self.font_size)
-            if current_width + char_width <= self.col_width:
-                current_line += char
-                current_width += char_width
-            else:
-                lines.append(current_line)
-                current_line = char
-                current_width = char_width
-                
-        if current_line:
-            lines.append(current_line)
-            
-        return lines
+from converter import (
+    DEFAULT_ENCODING,
+    DEFAULT_FONT_PATH,
+    ConversionError,
+    TextToPdfConverter,
+)
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Convert EUC-JP text file to A4 2UP PDF.")
-    parser.add_argument("input_file", help="Path to the input EUC-JP text file")
+def build_parser():
+    parser = argparse.ArgumentParser(
+        description=(
+            "Convert a text file to an A4 PDF. "
+            "Japanese and ASCII are drawn with an embedded IPA Gothic font."
+        )
+    )
+    parser.add_argument("input_file", help="Path to the input text file")
     parser.add_argument("output_file", nargs="?", help="Path to the output PDF file")
-    parser.add_argument("--font-size", choices=["large", "medium", "small"], default="medium",
-                        help="Font size (large=11pt, medium=10pt, small=8pt)")
-    parser.add_argument("--layout", choices=["2up", "1up"], default="2up",
-                        help="Layout (2up=Landscape 2 columns, 1up=Portrait 1 column)")
-    
-    args = parser.parse_args()
-    
+    parser.add_argument(
+        "--font-size",
+        choices=["large", "medium", "small"],
+        default="medium",
+        help="Font size (large=11pt, medium=10pt, small=8pt)",
+    )
+    parser.add_argument(
+        "--layout",
+        choices=["2up", "1up"],
+        default="2up",
+        help="Layout (2up=Landscape 2 columns, 1up=Portrait 1 column)",
+    )
+    parser.add_argument(
+        "--encoding",
+        default=DEFAULT_ENCODING,
+        help=(
+            "Input encoding: euc_jis_2004 (default), euc_jp, or utf-8. "
+            "Hyphenated names such as euc-jp and euc-jis-2004 are also accepted."
+        ),
+    )
+    parser.add_argument(
+        "--font-path",
+        default=DEFAULT_FONT_PATH,
+        help="TrueType font to embed (default: ~/.local/share/fonts/ipag.ttf)",
+    )
+    parser.add_argument(
+        "--tab-size",
+        type=int,
+        default=8,
+        help="Tab stop width in ASCII spaces (default: 8)",
+    )
+    return parser
+
+
+def main(argv=None):
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.tab_size < 1:
+        parser.error("--tab-size must be an integer >= 1")
+
     input_path = args.input_file
     if not os.path.exists(input_path):
-        print(f"Error: File not found: {input_path}")
-        sys.exit(1)
-        
+        print("Error: File not found: {}".format(input_path), file=sys.stderr)
+        return 1
+    if os.path.isdir(input_path):
+        print("Error: Input path is a directory: {}".format(input_path), file=sys.stderr)
+        return 1
+
     if args.output_file:
         output_path = args.output_file
     else:
         base, _ = os.path.splitext(input_path)
         output_path = base + ".pdf"
-    
+
     size_map = {
         "large": 11,
         "medium": 10,
-        "small": 8
+        "small": 8,
     }
-    font_size = size_map[args.font_size]
-        
-    converter = TextToPdfConverter(font_size=font_size, layout=args.layout)
-    converter.convert(input_path, output_path)
+    try:
+        converter = TextToPdfConverter(
+            font_size=size_map[args.font_size],
+            layout=args.layout,
+            font_path=args.font_path,
+            tab_size=args.tab_size,
+        )
+        converter.convert(input_path, output_path, encoding=args.encoding)
+    except ConversionError as exc:
+        print(str(exc), file=sys.stderr)
+        return exc.exit_code
+    except OSError as exc:
+        print("Error: {}".format(exc), file=sys.stderr)
+        return 1
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
