@@ -51,7 +51,7 @@ sudo cp ipag.ttf /usr/share/fonts/ipa-gothic/ipag.ttf
 sudo fc-cache -f
 ```
 
-ファイル名が `ipag.ttf` のものだけを使います。IPA 明朝や IPA P ゴシックは対象外です。見つからないときは終了コード 1 です。別の TrueType フォントを使うときは `--font-path` でファイルを指定します。指定したファイルが無い場合も終了コードは 1 です。
+ファイル名が `ipag.ttf` のものだけを使います。IPA 明朝や IPA P ゴシックは対象外です。見つからないときは終了コード 1 で、標準エラーへ英語で未導入であることと導入先（`/usr/share/fonts/ipa-gothic/` など）を出します。別の TrueType フォントを使うときは `--font-path` でファイルを指定します。指定したファイルが無い場合も終了コードは 1 です。
 
 ```bash
 ./text2pdf input.txt output.pdf --font-path /path/to/font.ttf

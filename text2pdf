@@ -222,8 +222,9 @@ def find_ipa_gothic(search_dirs=None):
                 if name.lower() == IPA_GOTHIC_FILENAME:
                     return os.path.join(dirpath, name)
     raise ConversionError(
-        "Error: IPA Gothic (ipag.ttf) was not found under the standard font "
-        "directories. Use --font-path to specify the font file.",
+        "Error: Cannot run because IPA Gothic (ipag.ttf) is not installed. "
+        "Place ipag.ttf in /usr/share/fonts/ipa-gothic/ or another standard "
+        "font directory, or pass --font-path.",
         1,
     )
 

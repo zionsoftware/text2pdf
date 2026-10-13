@@ -47,9 +47,12 @@ def test_missing_ipa_gothic_raises(tmp_path):
     (tmp_path / "ipagp.ttf").write_bytes(b"other")
     with pytest.raises(ConversionError) as caught:
         find_ipa_gothic([str(tmp_path)])
+    message = str(caught.value)
     assert caught.value.exit_code == 1
-    assert "ipag.ttf" in str(caught.value)
-    assert "--font-path" in str(caught.value)
+    assert "Cannot run" in message
+    assert "ipag.ttf" in message
+    assert "/usr/share/fonts/ipa-gothic/" in message
+    assert "--font-path" in message
 
 
 def test_installed_ipa_gothic_is_under_the_system_font_dir():
