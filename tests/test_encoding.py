@@ -488,6 +488,30 @@ def test_same_input_and_output_path_is_rejected(tmp_path, font_path, converter_f
     assert source.read_bytes() == b"keep\n"
 
 
+def test_symlink_to_the_same_file_is_rejected(tmp_path, font_path, converter_factory):
+    source = tmp_path / "notes.txt"
+    source.write_bytes(b"keep\n")
+    link = tmp_path / "alias.txt"
+    link.symlink_to(source)
+
+    via_output = _run(str(source), str(link))
+    assert via_output.returncode == 1
+    assert "same as the input file" in via_output.stderr
+    assert source.read_bytes() == b"keep\n"
+    assert link.is_symlink()
+
+    via_input = _run(str(link), str(source))
+    assert via_input.returncode == 1
+    assert "same as the input file" in via_input.stderr
+    assert source.read_bytes() == b"keep\n"
+
+    converter = converter_factory()
+    with pytest.raises(ConversionError) as caught:
+        converter.convert(str(link), str(source))
+    assert caught.value.exit_code == 1
+    assert source.read_bytes() == b"keep\n"
+
+
 def test_existing_pdf_is_overwritten_on_success(tmp_path, font_path):
     source = tmp_path / "notes.txt"
     source.write_bytes(b"fresh\n")

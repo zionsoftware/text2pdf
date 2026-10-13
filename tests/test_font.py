@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from text2pdf import ConversionError, find_ipa_gothic
+from text2pdf import FONT_SEARCH_DIRS, ConversionError, find_ipa_gothic
 
 
 def test_finds_ipag_in_a_subdirectory(tmp_path):
@@ -55,8 +55,11 @@ def test_missing_ipa_gothic_raises(tmp_path):
     assert "--font-path" in message
 
 
-def test_installed_ipa_gothic_is_under_the_system_font_dir():
-    path = find_ipa_gothic()
+def test_installed_ipa_gothic_is_under_a_search_directory():
+    path = os.path.abspath(find_ipa_gothic())
     assert os.path.basename(path).lower() == "ipag.ttf"
     assert os.path.isfile(path)
-    assert path.startswith("/usr/share/fonts/")
+    assert any(
+        os.path.commonpath([path, os.path.abspath(root)]) == os.path.abspath(root)
+        for root in FONT_SEARCH_DIRS
+    )

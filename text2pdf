@@ -77,7 +77,12 @@ def normalize_encoding(name):
 
 def same_file_path(left, right):
     """Return True when two paths name the same file after normalization."""
-    return os.path.abspath(os.path.normpath(left)) == os.path.abspath(os.path.normpath(right))
+    if os.path.abspath(os.path.normpath(left)) == os.path.abspath(os.path.normpath(right)):
+        return True
+    try:
+        return os.path.samefile(left, right)
+    except OSError:
+        return False
 
 
 def select_decoded(successes):
