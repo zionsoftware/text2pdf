@@ -11,6 +11,41 @@ from converter import (
 )
 
 
+NAMED_FONT_SIZES = {
+    "large": 11,
+    "medium": 10,
+    "small": 8,
+}
+MIN_FONT_SIZE = 6
+MAX_FONT_SIZE = 16
+
+
+def parse_font_size(value):
+    """Accept large/medium/small or an integer from 6 to 16."""
+    if value in NAMED_FONT_SIZES:
+        return NAMED_FONT_SIZES[value]
+    if not value.isdigit():
+        raise argparse.ArgumentTypeError(
+            "invalid font size: {!r} (use large, medium, small, or an integer from {} to {})".format(
+                value, MIN_FONT_SIZE, MAX_FONT_SIZE
+            )
+        )
+    size = int(value)
+    if size < MIN_FONT_SIZE or size > MAX_FONT_SIZE:
+        raise argparse.ArgumentTypeError(
+            "font size must be an integer from {} to {} (got {})".format(
+                MIN_FONT_SIZE, MAX_FONT_SIZE, size
+            )
+        )
+    return size
+
+
+def default_output_path(input_path):
+    """Replace the input suffix with .pdf in the same directory."""
+    base, _ext = os.path.splitext(input_path)
+    return base + ".pdf"
+
+
 def build_parser():
     parser = argparse.ArgumentParser(
         description=(
@@ -22,9 +57,12 @@ def build_parser():
     parser.add_argument("output_file", nargs="?", help="Path to the output PDF file")
     parser.add_argument(
         "--font-size",
-        choices=["large", "medium", "small"],
-        default="medium",
-        help="Font size (large=11pt, medium=10pt, small=8pt)",
+        type=parse_font_size,
+        default=NAMED_FONT_SIZES["medium"],
+        help=(
+            "Body font size: large (11pt), medium (10pt, default), small (8pt), "
+            "or an integer from 6 to 16. Header and footer sizes stay fixed."
+        ),
     )
     parser.add_argument(
         "--layout",
@@ -36,7 +74,7 @@ def build_parser():
         "--encoding",
         default=DEFAULT_ENCODING,
         help=(
-            "Input encoding: euc_jis_2004 (default), euc_jp, or utf-8. "
+            "Input encoding: auto (default), euc_jis_2004, euc_jp, utf-8, or cp932. "
             "Hyphenated names such as euc-jp and euc-jis-2004 are also accepted."
         ),
     )
@@ -71,17 +109,11 @@ def main(argv=None):
     if args.output_file:
         output_path = args.output_file
     else:
-        base, _ = os.path.splitext(input_path)
-        output_path = base + ".pdf"
+        output_path = default_output_path(input_path)
 
-    size_map = {
-        "large": 11,
-        "medium": 10,
-        "small": 8,
-    }
     try:
         converter = TextToPdfConverter(
-            font_size=size_map[args.font_size],
+            font_size=args.font_size,
             layout=args.layout,
             font_path=args.font_path,
             tab_size=args.tab_size,

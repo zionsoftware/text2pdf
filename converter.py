@@ -2,6 +2,7 @@
 
 import math
 import os
+import sys
 import tempfile
 from datetime import datetime
 
@@ -15,16 +16,24 @@ from reportlab.pdfgen import canvas
 
 FONT_NAME = "IPAGothic"
 DEFAULT_FONT_PATH = os.path.expanduser("~/.local/share/fonts/ipag.ttf")
-DEFAULT_ENCODING = "euc_jis_2004"
+DEFAULT_ENCODING = "auto"
 DEFAULT_TAB_SIZE = 8
+UTF8_BOM = b"\xef\xbb\xbf"
+# Auto-detection tries these in order. euc_jp is accepted only when named
+# explicitly; euc_jis_2004 already decodes ordinary EUC-JP text.
+AUTO_ENCODINGS = ("euc_jis_2004", "utf-8", "cp932")
 
 # Canonical codec names. Keys are the normalized spellings we accept.
 _ENCODING_ALIASES = {
+    "auto": "auto",
     "euc-jp": "euc_jp",
     "euc-jis-2004": "euc_jis_2004",
     "utf-8": "utf-8",
     "utf8": "utf-8",
+    "cp932": "cp932",
+    "cp-932": "cp932",
 }
+_SUPPORTED_ENCODINGS = "auto, euc_jp, euc_jis_2004, utf-8, cp932"
 
 _WIDTH_EPSILON = 1e-6
 
@@ -42,7 +51,7 @@ def normalize_encoding(name):
     if not isinstance(name, str) or not name.strip():
         raise ConversionError(
             "Error: Unsupported encoding: {!r}. Supported encodings: "
-            "euc_jp, euc_jis_2004, utf-8.".format(name),
+            "{}.".format(name, _SUPPORTED_ENCODINGS),
             2,
         )
     folded = name.strip().lower().replace("_", "-")
@@ -50,21 +59,33 @@ def normalize_encoding(name):
     if codec is None:
         raise ConversionError(
             "Error: Unsupported encoding: {!r}. Supported encodings: "
-            "euc_jp, euc_jis_2004, utf-8.".format(name),
+            "{}.".format(name, _SUPPORTED_ENCODINGS),
             2,
         )
     return codec
 
 
-def read_text_file(path, encoding):
-    """Read a text file and return lines without line endings.
+def same_file_path(left, right):
+    """Return True when two paths name the same file after normalization."""
+    return os.path.abspath(os.path.normpath(left)) == os.path.abspath(os.path.normpath(right))
 
-    Decode errors include the file name, byte offset, line number, and reason.
+
+def select_decoded(successes):
+    """Pick the highest-priority successful decode.
+
+    ``successes`` is a list of ``(codec, text)`` already ordered by
+    ``AUTO_ENCODINGS``. Codecs whose text differs from the selected text are
+    returned as ambiguous. Identical text does not count as ambiguous.
     """
-    codec = normalize_encoding(encoding)
+    selected_codec, selected_text = successes[0]
+    ambiguous = [codec for codec, text in successes[1:] if text != selected_text]
+    return selected_codec, selected_text, ambiguous
+
+
+def _read_binary(path):
     try:
         with open(path, "rb") as handle:
-            data = handle.read()
+            return handle.read()
     except FileNotFoundError:
         raise ConversionError("Error: File not found: {}".format(path), 1)
     except IsADirectoryError:
@@ -72,22 +93,107 @@ def read_text_file(path, encoding):
     except OSError as exc:
         raise ConversionError("Error reading file: {}".format(exc), 1)
 
+
+def _decode_error(path, source, codec, exc, offset_base=0):
+    offset = exc.start + offset_base
+    line_no = source[:offset].count(b"\n") + 1
+    raise ConversionError(
+        "Error: Could not decode {path} as {codec} at byte {offset} "
+        "(line {line}): {reason}".format(
+            path=path,
+            codec=codec,
+            offset=offset,
+            line=line_no,
+            reason=exc.reason,
+        ),
+        1,
+    )
+
+
+def decode_strict(data, codec, path, source=None, offset_base=0):
+    """Decode ``data`` with ``codec`` and raise ConversionError on failure."""
+    if source is None:
+        source = data
     try:
-        text = data.decode(codec)
+        return data.decode(codec)
     except UnicodeDecodeError as exc:
-        line_no = data[:exc.start].count(b"\n") + 1
+        _decode_error(path, source, codec, exc, offset_base)
+
+
+def detect_encoding(data, path):
+    """Detect an encoding and return ``(text, codec, ambiguous_codecs)``.
+
+    A UTF-8 BOM wins immediately. Invalid UTF-8 after a BOM is an error.
+    ASCII, including an empty file, is UTF-8. Otherwise each auto candidate
+    is decoded strictly and the priority order in ``AUTO_ENCODINGS`` applies.
+    """
+    if data.startswith(UTF8_BOM):
+        text = decode_strict(
+            data[len(UTF8_BOM):],
+            "utf-8",
+            path,
+            source=data,
+            offset_base=len(UTF8_BOM),
+        )
+        return text, "utf-8", []
+    if data.isascii():
+        return data.decode("utf-8"), "utf-8", []
+
+    successes = []
+    for codec in AUTO_ENCODINGS:
+        try:
+            successes.append((codec, data.decode(codec)))
+        except UnicodeDecodeError:
+            continue
+    if not successes:
         raise ConversionError(
-            "Error: Could not decode {path} as {codec} at byte {offset} "
-            "(line {line}): {reason}".format(
-                path=path,
-                codec=codec,
-                offset=exc.start,
-                line=line_no,
-                reason=exc.reason,
-            ),
+            "Error: Could not decode {path} as euc_jis_2004, utf-8, or cp932.".format(path=path),
             1,
         )
-    return text.splitlines()
+    codec, text, ambiguous = select_decoded(successes)
+    return text, codec, ambiguous
+
+
+def format_ambiguous_warning(selected, others):
+    return (
+        "Warning: Ambiguous encoding detected.\n"
+        "Selected: {selected}\n"
+        "Other possible encodings: {others}\n"
+        "Use --encoding to specify the correct encoding.".format(
+            selected=selected,
+            others=", ".join(others),
+        )
+    )
+
+
+def report_encoding(encoding, selected, ambiguous):
+    """Print the auto-detection result. Explicit encodings stay quiet."""
+    if normalize_encoding(encoding) == "auto":
+        print("Detected encoding: {}".format(selected))
+    if ambiguous:
+        print(format_ambiguous_warning(selected, ambiguous), file=sys.stderr)
+
+
+def load_text(path, encoding):
+    """Read ``path`` once and return ``(lines, selected_codec, ambiguous)``."""
+    codec = normalize_encoding(encoding)
+    data = _read_binary(path)
+    if codec == "auto":
+        text, selected, ambiguous = detect_encoding(data, path)
+    else:
+        text = decode_strict(data, codec, path)
+        selected = codec
+        ambiguous = []
+    return text.splitlines(), selected, ambiguous
+
+
+def read_text_file(path, encoding):
+    """Read a text file and return lines without line endings.
+
+    Decode errors include the file name, byte offset, line number, and reason.
+    """
+    lines, _selected, _ambiguous = load_text(path, encoding)
+    return lines
 
 
 def register_ipa_gothic(font_path):
@@ -289,7 +395,15 @@ class TextToPdfConverter:
         )
 
     def convert(self, input_path, output_path, encoding=DEFAULT_ENCODING):
-        source_lines = read_text_file(input_path, encoding)
+        if same_file_path(input_path, output_path):
+            raise ConversionError(
+                "Error: Output file is the same as the input file: {}".format(
+                    os.path.abspath(os.path.normpath(output_path))
+                ),
+                1,
+            )
+        source_lines, selected, ambiguous = load_text(input_path, encoding)
+        report_encoding(encoding, selected, ambiguous)
         visual_lines = []
         for line in source_lines:
             visual_lines.extend(self.layout_text_line(line))

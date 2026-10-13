@@ -6,6 +6,8 @@ character in the extracted text; those are asserted absent separately from
 whether the surrounding characters can be extracted at all.
 """
 
+import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -16,6 +18,15 @@ from reportlab.pdfbase import pdfmetrics
 from converter import FONT_NAME, ConversionError
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _run(*args):
+    return subprocess.run(
+        [sys.executable, str(ROOT / "text2pdf"), *args],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+    )
 
 
 def _positions(path):
@@ -374,3 +385,137 @@ def test_default_samples_convert(converter_factory, tmp_path):
         assert "\t" not in extracted
         assert "\u25a0" not in extracted
         assert source.name in extracted or "..." in extracted
+
+
+@pytest.mark.parametrize("layout", ["1up", "2up"])
+@pytest.mark.parametrize(
+    "argument,size",
+    [
+        ("6", 6),
+        ("8", 8),
+        ("10", 10),
+        ("12", 12),
+        ("16", 16),
+        ("large", 11),
+        ("medium", 10),
+        ("small", 8),
+    ],
+)
+def test_cli_font_size_sets_body_and_keeps_chrome(tmp_path, layout, argument, size):
+    source = tmp_path / "body.txt"
+    source.write_bytes(b"ABC\n")
+    output = tmp_path / "body.pdf"
+    result = _run(
+        str(source),
+        str(output),
+        "--layout",
+        layout,
+        "--font-size",
+        argument,
+    )
+    assert result.returncode == 0, result.stderr
+    items, reader = _positions(output)
+    box = reader.pages[0].mediabox
+    if layout == "1up":
+        assert float(box.width) < float(box.height)
+    else:
+        assert float(box.width) > float(box.height)
+    assert any(
+        item["text"] == "ABC" and item["size"] == pytest.approx(size) for item in items
+    )
+    assert any(item["size"] == pytest.approx(15) for item in items)
+    page = next(item for item in items if item["text"] == "1 / 1")
+    info = next(item for item in items if "Printed by" in item["text"])
+    assert page["size"] == pytest.approx(10)
+    assert info["size"] == pytest.approx(10)
+
+
+def test_cli_default_font_size_is_medium(tmp_path):
+    source = tmp_path / "body.txt"
+    source.write_bytes(b"ABC\n")
+    output = tmp_path / "body.pdf"
+    result = _run(str(source), str(output), "--layout", "1up")
+    assert result.returncode == 0, result.stderr
+    items, _reader = _positions(output)
+    assert any(
+        item["text"] == "ABC" and item["size"] == pytest.approx(10) for item in items
+    )
+
+
+def test_larger_font_wraps_sooner_and_stays_inside_the_frame(converter_factory, tmp_path):
+    text = "A" * 120
+    small = converter_factory(font_size=6, layout="1up")
+    large = converter_factory(font_size=16, layout="1up")
+    assert len(small.layout_text_line(text)) < len(large.layout_text_line(text))
+    assert large.lines_per_col < small.lines_per_col
+
+    face = pdfmetrics.getFont(FONT_NAME).face
+    for converter in (small, large):
+        _source, output = _write(
+            converter,
+            tmp_path,
+            text + "\n",
+            name="wrap-{}.txt".format(converter.font_size),
+        )
+        items, _reader = _positions(output)
+        body_top = converter.page_height - converter.margin - converter.header_height
+        body_bottom = converter.margin + converter.footer_height
+        ascent = face.ascent / 1000.0 * converter.font_size
+        descent = face.descent / 1000.0 * converter.font_size
+        saw_body = False
+        for item in items:
+            if not (body_bottom < item["y"] < body_top):
+                continue
+            if item["size"] != pytest.approx(converter.font_size):
+                continue
+            saw_body = True
+            width = pdfmetrics.stringWidth(item["text"], FONT_NAME, converter.font_size)
+            right_limit = converter.margin + converter.body_width - converter.padding_right
+            assert item["x"] >= converter.margin + converter.padding_left - 0.5
+            assert item["x"] + width <= right_limit + 0.5
+            assert item["y"] + ascent <= body_top + 0.5
+            assert item["y"] + descent >= body_bottom - 0.5
+        assert saw_body
+
+
+def test_2up_numeric_font_wraps_inside_the_column(converter_factory, tmp_path):
+    converter = converter_factory(layout="2up", font_size=16)
+    _source, output = _write(converter, tmp_path, ("B" * 80) + "\n", name="wide.txt")
+    items, reader = _positions(output)
+    box = reader.pages[0].mediabox
+    assert float(box.width) > float(box.height)
+    body_top = converter.page_height - converter.margin - converter.header_height
+    body_bottom = converter.margin + converter.footer_height
+    body_items = [
+        item
+        for item in items
+        if body_bottom < item["y"] < body_top and item["size"] == pytest.approx(16)
+    ]
+    assert len(body_items) > 1
+    right_limit = converter.margin + converter.layout_col_width - converter.padding_right
+    for item in body_items:
+        width = pdfmetrics.stringWidth(item["text"], FONT_NAME, 16)
+        assert item["x"] + width <= right_limit + 0.5
+    assert any(item["size"] == pytest.approx(15) for item in items)
+
+
+def test_samples_convert_with_auto_detection(converter_factory, tmp_path, capsys):
+    samples = [
+        (ROOT / "samples" / "english_sample.txt", "utf-8"),
+        (ROOT / "samples" / "program_sample.py", "utf-8"),
+        (ROOT / "samples" / "mixed_euc_jis_2004.txt", "euc_jis_2004"),
+    ]
+    converter = converter_factory(layout="1up", font_size=12)
+    for source, encoding in samples:
+        output = tmp_path / (source.stem + "-auto.pdf")
+        converter.convert(str(source), str(output))
+        captured = capsys.readouterr()
+        assert "Detected encoding: {}".format(encoding) in captured.out
+        assert "Warning" not in captured.err
+        items, reader = _positions(output)
+        assert reader.pages
+        body = [item for item in items if item["size"] == pytest.approx(12)]
+        assert body
+        extracted = "".join(item["text"] for item in items)
+        assert "\t" not in extracted
+        assert "\u25a0" not in extracted
