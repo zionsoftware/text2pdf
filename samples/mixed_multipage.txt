@@ -1,0 +1,197 @@
+text2pdf 複数ページ確認用サンプル / Multi-page mixed sample
+和文と English を同じ行に置き、2up・8pt での段組み・折り返し・改ページを見る。
+This file mixes Japanese prose, ASCII, fullwidth letters, circled numbers, and TAB columns.
+
+【1. 概要 / Overview】
+本文は IPA Gothic 8pt。レイアウトは A4 横の 2up（左右 2 段）です。
+The body is 8pt IPA Gothic on landscape A4 with two columns.
+ヘッダーにはファイル名、変換日時、ユーザー名が出ます。フッターは絶対パスとページ番号です。
+Header shows the file name, timestamp, and user. Footer shows the absolute path and page number.
+左段が埋まると右段へ続き、右段の次は次ページの左段です。
+The left column fills first, then the right column, then the next page.
+
+【2. 和英混在の短文 / Short mixed lines】
+りんご apple 10 個。単価は 120 円、金額は 1,200 円です。
+みかん orange 20 個。単価は 80 円、金額は 1,600 円です。
+バナナ banana 3 房。単価は 150 円、金額は 450 円です。
+ぶどう grape ①初回 5 箱。納品先は Tokyo Warehouse です。
+もも peach ②追加 8 箱。担当は Sato / 佐藤です。
+なし pear ③終了 2 箱。備考は N/A、確認者は Suzuki です。
+全角英数 ＡＢＣＤＥＦＧ １２３４５６７８９０ と半角 ABCDEFG 1234567890 の並び。
+記号: ①②③④⑤⑥⑦⑧⑨⑩ ⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳ と (1)(2)(3) [A][B][C]。
+住所: 東京都千代田区 1-1-1 Sample Bldg. 3F / Reception
+電話: 03-1234-5678  FAX: 03-1234-5679  Email: sample@example.com
+
+【3. TAB 揃え / Tab-aligned columns】
+名前	コード	数量	単価	備考
+りんご	A-001	10	120	①初回 / first lot
+みかん	B-002	20	80	②追加 / extra
+バナナ	C-003	3	150	③終了 / closed
+ぶどう	D-004	5	400	Tokyo / 東京倉庫
+もも	E-005	8	250	Sato / 佐藤
+なし	F-006	2	180	Suzuki / 鈴木
+キウイ	G-007	12	90	pending / 保留
+メロン	H-008	1	980	priority / 優先
+スイカ	I-009	4	600	summer / 夏期限定
+いちご	J-010	15	300	gift / 贈答用
+	先頭タブの行 / leading tab
+連続		タブ	の行	middle tabs
+コード	A-100	説明文は日本語で、code is ASCII.	備考欄
+ID	X-200	Mixed タブ	value	note
+
+【4. 折り返し / Wrapping】
+This line is intentionally long so that wrapping can be checked in the generated sample PDF. 長い行の折り返し確認用の文章です。1234567890abcdefghijklmnopqrstuvwxyz 段幅を超えたら次の視覚行へ送られます。The wrapped continuation must stay inside the same column and must not cross the center gap.
+次の行も折り返します。IPA Gothic の描画幅で切るため、日本語は全角 1 字、ASCII は実測幅です。ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをん。
+English paragraph: The converter expands TAB stops using the width of an ASCII space, counts a fullwidth character as two ASCII columns, and wraps a source line when the measured advance exceeds the column width. この段落は和文と英文を交互に置いて、混在行の折り返し位置を目視できるようにしています。
+
+【5. 手順 / Procedure】
+Step 1. 入力ファイルをバイナリで一度だけ読む。Read the input once as bytes.
+Step 2. 文字コードを判別する。Detect euc_jis_2004, utf-8, or cp932.
+Step 3. 行を段幅に合わせて折り返す。Wrap each line to the column width.
+Step 4. 左段、右段の順に描画する。Draw the left column, then the right column.
+Step 5. ページを進めてヘッダーとフッターを描く。Advance the page and draw the header and footer.
+注意: 8pt でもヘッダーとフッターのサイズは変わりません。Body size changes; header and footer sizes stay fixed.
+Note: small is 8pt. Integers from 6 to 16 also set the body size only.
+
+【6. 日誌 / Log lines】
+2026-10-14 09:00 開始 / start job mixed-2up-8pt
+2026-10-14 09:05 読込 / loaded samples/mixed_multipage.txt as utf-8
+2026-10-14 09:06 フォント / embedded IPAGothic from ipag.ttf
+2026-10-14 09:07 段組 / layout=2up font-size=8 leading=12.6pt
+2026-10-14 09:08 左段 / filling the left column of page 1
+2026-10-14 09:09 右段 / filling the right column of page 1
+2026-10-14 09:10 改ページ / page break after both columns are full
+2026-10-14 09:11 継続 / continued text must not repeat the previous page
+2026-10-14 09:12 確認 / check circled numbers ①②③ and fullwidth ＡＢＣ
+2026-10-14 09:13 終了予定 / expected to span more than one physical page
+
+【7. 用語 / Glossary】
+1up	A4 portrait, one column. 縦位置・1 段。
+2up	A4 landscape, two columns. 横位置・左右 2 段。
+leading	font_size * 1.2 + 3。行送り。
+column gap	段のあいだの空き。本文はギャップをまたがない。
+wrap	段幅を超えたソース行を視覚行へ分割する。
+TAB	ASCII 空白幅を 1 桁として次のタブストップまで進める。
+encoding	auto の優先順位は euc_jis_2004, utf-8, cp932。
+font	本文・ヘッダー・フッターは同じ IPA ゴシック。
+
+【8. 繰り返し明細 / Repeated rows for page fill】
+No.001	りんご	apple	Tokyo	10	120	1,200	①初回	OK
+No.002	みかん	orange	Osaka	20	80	1,600	②追加	OK
+No.003	バナナ	banana	Nagoya	3	150	450	③終了	OK
+No.004	ぶどう	grape	Fukuoka	5	400	2,000	保留	CHECK
+No.005	もも	peach	Sapporo	8	250	2,000	佐藤	OK
+No.006	なし	pear	Sendai	2	180	360	鈴木	OK
+No.007	キウイ	kiwi	Hiroshima	12	90	1,080	pending	OK
+No.008	メロン	melon	Kyoto	1	980	980	priority	OK
+No.009	スイカ	watermelon	Kobe	4	600	2,400	summer	OK
+No.010	いちご	strawberry	Yokohama	15	300	4,500	gift	OK
+No.011	りんご	apple	Tokyo	11	120	1,320	再計上	OK
+No.012	みかん	orange	Osaka	21	80	1,680	再計上	OK
+No.013	バナナ	banana	Nagoya	6	150	900	再計上	OK
+No.014	ぶどう	grape	Fukuoka	7	400	2,800	再計上	CHECK
+No.015	もも	peach	Sapporo	9	250	2,250	再計上	OK
+No.016	なし	pear	Sendai	3	180	540	再計上	OK
+No.017	キウイ	kiwi	Hiroshima	13	90	1,170	再計上	OK
+No.018	メロン	melon	Kyoto	2	980	1,960	再計上	OK
+No.019	スイカ	watermelon	Kobe	5	600	3,000	再計上	OK
+No.020	いちご	strawberry	Yokohama	16	300	4,800	再計上	OK
+No.021	キャベツ	cabbage	Chiba	30	70	2,100	青果	OK
+No.022	にんじん	carrot	Hokkaido	40	60	2,400	青果	OK
+No.023	じゃがいも	potato	Hokkaido	25	50	1,250	青果	OK
+No.024	たまねぎ	onion	Hyogo	18	55	990	青果	OK
+No.025	トマト	tomato	Kumamoto	22	110	2,420	青果	OK
+No.026	きゅうり	cucumber	Miyazaki	14	90	1,260	青果	OK
+No.027	なす	eggplant	Kochi	9	130	1,170	青果	OK
+No.028	ピーマン	pepper	Ibaraki	11	140	1,540	青果	OK
+No.029	ほうれん草	spinach	Gunma	8	160	1,280	葉物	OK
+No.030	レタス	lettuce	Nagano	7	150	1,050	葉物	OK
+No.031	大根	daikon	Chiba	6	120	720	根菜	OK
+No.032	ごぼう	burdock	Aomori	4	200	800	根菜	OK
+No.033	れんこん	lotus	Ibaraki	3	250	750	根菜	OK
+No.034	さつまいも	sweet potato	Kagoshima	10	180	1,800	根菜	OK
+No.035	かぼちゃ	pumpkin	Hokkaido	5	220	1,100	果菜	OK
+No.036	とうもろこし	corn	Yamanashi	12	100	1,200	果菜	OK
+No.037	枝豆	edamame	Niigata	9	160	1,440	豆類	OK
+No.038	大豆	soybean	Akita	20	90	1,800	豆類	OK
+No.039	小豆	azuki	Tokachi	6	300	1,800	豆類	OK
+No.040	米	rice	Niigata	50	400	20,000	主食	OK
+
+【9. 英文段落 / English paragraphs with Japanese inserts】
+Paragraph A. Inventory is counted every morning. 朝礼のあと、担当者が棚を見て数量を控える。Differences are written in the note column. 差異は備考欄へ書く。Do not overwrite a closed lot. 終了したロットは上書きしない。
+Paragraph B. Shipping labels use both scripts. 送り状には日本語の宛名と ASCII の郵便番号を並べる。Example: 〒100-0001 東京都千代田区千代田 1-1 Sample Taro. Phone 03-0000-0000.
+Paragraph C. A single source line may contain kanji, kana, and ASCII punctuation: 「確認 (confirm): OK / NG」。引用符とスラッシュが段の端で欠けないことを見る。
+Paragraph D. Numbers in running text: 税率 10%, tax rate 10%, 合計 12,345 円, total JPY 12,345. 小数 3.14 と ３．１４（全角）を隣に置く。
+Paragraph E. The right column of page 1 and the left column of page 2 should show continuous numbering. ページをまたいでも No. の並びが飛ばないこと。
+
+【10. 追加明細 / More rows so the PDF exceeds two pages】
+Row 041	青森	Aomori	りんご	apple	Sun-Fuji	特秀	①	12	kg
+Row 042	青森	Aomori	りんご	apple	Sun-Tsugaru	優	②	8	kg
+Row 043	長野	Nagano	りんご	apple	Shinano-Gold	秀	③	6	kg
+Row 044	山形	Yamagata	さくらんぼ	cherry	Sato-Nishiki	秀	④	2	kg
+Row 045	山梨	Yamanashi	もも	peach	Hakuho	優	⑤	4	kg
+Row 046	山梨	Yamanashi	ぶどう	grape	Kyoho	秀	⑥	5	kg
+Row 047	岡山	Okayama	もも	peach	Shimizu-Hakuto	特秀	⑦	3	kg
+Row 048	岡山	Okayama	ぶどう	grape	Pione	秀	⑧	4	kg
+Row 049	鳥取	Tottori	なし	pear	Twentieth-Century	優	⑨	7	kg
+Row 050	鳥取	Tottori	すいか	watermelon	Daiei	秀	⑩	9	kg
+Row 051	北海道	Hokkaido	メロン	melon	Yubari	特秀	⑪	2	玉
+Row 052	北海道	Hokkaido	じゃがいも	potato	Danshaku	優	⑫	15	kg
+Row 053	北海道	Hokkaido	とうもろこし	corn	Gold-Rush	秀	⑬	10	本
+Row 054	熊本	Kumamoto	すいか	watermelon	Spring-Light	優	⑭	6	玉
+Row 055	熊本	Kumamoto	トマト	tomato	Momotaro	秀	⑮	11	kg
+Row 056	宮崎	Miyazaki	マンゴー	mango	Irwin	特秀	⑯	3	玉
+Row 057	宮崎	Miyazaki	きゅうり	cucumber	Natsu-Suzumi	優	⑰	9	kg
+Row 058	高知	Kochi	なす	eggplant	Kochi-Nasu	秀	⑱	7	kg
+Row 059	高知	Kochi	ゆず	yuzu	Kochi-Yuzu	優	⑲	4	kg
+Row 060	愛媛	Ehime	みかん	orange	Mikan	秀	⑳	20	kg
+Row 061	愛媛	Ehime	いよかん	iyokan	Iyokan	優	①	8	kg
+Row 062	和歌山	Wakayama	みかん	orange	Mikan	秀	②	18	kg
+Row 063	和歌山	Wakayama	梅	ume	Nanko	優	③	5	kg
+Row 064	静岡	Shizuoka	茶	tea	Sencha	特	④	2	kg
+Row 065	静岡	Shizuoka	みかん	orange	Aoshima	秀	⑤	14	kg
+Row 066	京都	Kyoto	九条ねぎ	kujo-negi	Kujo	優	⑥	3	束
+Row 067	京都	Kyoto	万願寺とうがらし	manganji	Manganji	秀	⑦	2	kg
+Row 068	大阪	Osaka	水なす	mizu-nasu	Mizu-Nasu	優	⑧	4	kg
+Row 069	奈良	Nara	柿	persimmon	Fuyu	秀	⑨	6	kg
+Row 070	奈良	Nara	いちご	strawberry	Asuka-Ruby	特秀	⑩	3	パック
+Row 071	福岡	Fukuoka	いちご	strawberry	Amaou	特秀	⑪	5	パック
+Row 072	福岡	Fukuoka	八女茶	yame-cha	Yame	特	⑫	1	kg
+Row 073	佐賀	Saga	のり	nori	Ariake	優	⑬	10	帖
+Row 074	佐賀	Saga	みかん	orange	Mikan	秀	⑭	9	kg
+Row 075	長崎	Nagasaki	びわ	loquat	Biwa	優	⑮	4	kg
+Row 076	長崎	Nagasaki	じゃがいも	potato	Dejima	秀	⑯	12	kg
+Row 077	大分	Oita	かぼす	kabosu	Kabosu	優	⑰	3	kg
+Row 078	大分	Oita	しいたけ	shiitake	Shiitake	秀	⑱	2	kg
+Row 079	鹿児島	Kagoshima	さつまいも	sweet potato	Beni-Haruka	特秀	⑲	8	kg
+Row 080	鹿児島	Kagoshima	お茶	tea	Chiran	特	⑳	2	kg
+Row 081	沖縄	Okinawa	パイン	pineapple	Gold	秀	①	6	玉
+Row 082	沖縄	Okinawa	マンゴー	mango	Apple-Mango	特秀	②	4	玉
+Row 083	沖縄	Okinawa	シークワーサー	shikuwasa	Shikuwasa	優	③	3	kg
+Row 084	茨城	Ibaraki	れんこん	lotus	Lotus	秀	④	5	kg
+Row 085	茨城	Ibaraki	メロン	melon	Andes	優	⑤	4	玉
+Row 086	千葉	Chiba	落花生	peanut	Chiba-Handachi	秀	⑥	7	kg
+Row 087	千葉	Chiba	梨	pear	Hosui	優	⑦	6	kg
+Row 088	埼玉	Saitama	狭山茶	sayama-cha	Sayama	特	⑧	1	kg
+Row 089	群馬	Gunma	キャベツ	cabbage	Tsumagoi	秀	⑨	11	kg
+Row 090	栃木	Tochigi	いちご	strawberry	Tochiotome	特秀	⑩	8	パック
+
+【11. 長文 / Longer mixed sentences】
+確認項目 1: 1 ページ目の右段の最終行と、2 ページ目の左段の先頭行が連続していること。The last visual line of the right column and the first visual line of the next page must be consecutive source lines, with no skipped row and no duplicated row.
+確認項目 2: 8pt の本文がヘッダー（ファイル名）やフッター（ページ番号）と重ならないこと。Body text at 8pt must stay between the header rule and the footer rule on every page, including the last partial page.
+確認項目 3: 和文の約物「」、（）、英文の comma, period, and slash / が文字化けしないこと。Circled numbers ① through ⑳ and fullwidth digits ０１２３４５６７８９ remain in the embedded font.
+確認項目 4: TAB で揃えた表は、段をまたいで列位置が崩れないこと。A table that starts near the bottom of the left column continues at the top of the right column with the same tab stops.
+確認項目 5: 折り返した行の続きは、次のソース行と区別できること。Wrapped pieces belong to one source line; the following source line starts on its own visual line.
+
+【12. 末尾 / Closing rows】
+End-01	最終確認	final check	page span	2up	8pt	mixed	JP/EN	open
+End-02	ヘッダー	header	filename	timestamp	user	fixed size	visible	open
+End-03	フッター	footer	absolute path	page number	n / N	fixed size	visible	open
+End-04	左段	left column	filled first	then right	then next page	order	OK	open
+End-05	右段	right column	same leading	same font	IPAGothic	embedded	OK	open
+End-06	折り返し	wrap	long English	and 長い日本語	stay in column	no overlap	OK	open
+End-07	タブ	tab	width of space	fullwidth = 2 cols	stops every 8	aligned	OK	open
+End-08	文字コード	encoding	this file is utf-8	no BOM	auto detect	expected	OK	open
+End-09	空行のあと	after a blank line	the next row is still one visual line	unless it wraps	check gap	OK	open
+
+End-10	ここが最終行です。This is the last source line of the multi-page mixed sample.
